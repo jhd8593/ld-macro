@@ -31,7 +31,11 @@ For each file in the target directory, the macro:
     - `Results_RED_<basename>.csv` – particle analysis results (one row per dead cell).  
     - `QC_RED_<basename>.png` – detected outlines drawn on the contrast-stretched image, for visual checking.
   - Why not Yen on the raw image: on 16-bit images with a dim background, Yen can set the cutoff above most dead nuclei (e.g. 472 vs. nuclei at ~200–320), and a 20–100 px size cap discards touching nuclei. On a liver sample this gave 4 cells instead of ~108.
-- **Writes a summary** `Summary_Area_Percent.csv` with one row per sample: GREEN area, RED area, RED count, and **Area % = GREEN area / RED area × 100**. (RED area is dead nuclei, GREEN is live cytoplasm, so values above 100 are expected.) It also reports **Dead_per_10k_Live_px = RED count / GREEN area × 10,000**: dead cells per 10,000 px² of live area, which uses the dead-cell count and so doesn't depend on nucleus size. Lower = healthier. Both metrics are for comparing samples imaged the same way; a true % viability needs a total-nuclei stain (e.g. Hoechst/DAPI).
+- **Writes a summary** `Summary_Area_Percent.csv` with one row per sample: GREEN area, RED area, RED count, and:
+  - **Pct_Live_Area** = GREEN / (GREEN + RED) × 100
+  - **Pct_Dead_Area** = RED / (GREEN + RED) × 100 (the two sum to 100%)
+  - **Dead_per_10k_Live_px** = RED count / GREEN area × 10,000 – dead cells per 10,000 px² of live area; uses the count, so it doesn't depend on nucleus size. Lower = healthier.
+  - Note: RED marks only dead nuclei while GREEN fills live cytoplasm, so % dead area understates the fraction of dead cells. Use these to compare samples imaged the same way; a true % viability by cell count needs a total-nuclei stain (e.g. Hoechst/DAPI).
 - **Skips all other files** (anything not ending in `w1.TIF` or `w2.TIF`).
 
 ### How to Use
