@@ -14,9 +14,12 @@ For each file in the target directory, the macro:
   - Applies **Li Auto Threshold** (`method=Li`, white foreground, `ignore_black`).  
   - Converts to a **binary mask**.  
   - Runs **Analyze Particles** with `size=200-Infinity pixel`, outputs overlay masks and results.  
+  - Logs the number of live aggregates and the **total live area**.  
   - Saves:
     - `Mask_GREEN_<basename>.tif` – GREEN mask image.  
-    - `Results_GREEN_<basename>.csv` – particle analysis results.
+    - `Results_GREEN_<basename>.csv` – particle analysis results.  
+    - `QC_GREEN_<basename>.png` – detected outlines drawn on the contrast-stretched image.
+  - Note: calcein-type live stains fill the cytoplasm continuously across a cell aggregate, so each GREEN particle is an **aggregate, not a single cell**. Use total live area (sum of `Area`) as the live readout, not the row count. The 200 px minimum intentionally drops faint green specks that sit on dead cells.
 - **Processes RED (`w2.TIF`) images**  
   - Opens the image.  
   - Applies **Subtract Background** (`rolling=10`) and **Gaussian Blur** (`sigma=1`).  

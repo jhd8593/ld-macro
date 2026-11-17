@@ -21,20 +21,36 @@ for (i = 0; i < lengthOf(list); i++) {
         baseName = replace(fileName, "w1.TIF", "");
 
         open(dir + fileName);
+        greenID = getImageID();
         print("Opened GREEN image: " + fileName);
+        // Calcein fills the cytoplasm continuously across aggregates, so each
+        // particle is a live cell aggregate, not a single cell. Use total live
+        // area (logged below) rather than particle count as the live readout.
+        // The 200 px minimum drops faint green specks that sit on dead cells.
         run("Sharpen");
         wait(200);
         run("Auto Threshold", "method=Li ignore_black white");
         setOption("BlackBackground", false);
         run("Convert to Mask");
-        run("Analyze Particles...", "size=200-Infinity pixel show=[Overlay Masks] display include add");
-        print("Processed GREEN image");
+        roiManager("reset");
+        run("Analyze Particles...", "size=200-Infinity pixel show=[Overlay Masks] display clear include add");
+        liveArea = 0;
+        for (r = 0; r < nResults; r++) liveArea += getResult("Area", r);
+        print("Processed GREEN image: " + nResults + " live aggregates, total live area = " + liveArea + " px");
 
-        selectWindow("Results");
+        selectImage(greenID);
         saveAs("Tiff", dir + "Mask_GREEN_" + baseName + ".tif");
         print("Saved GREEN mask: Mask_GREEN_" + baseName + ".tif");
         saveAs("Results", dir + "Results_GREEN_" + baseName + ".csv");
         print("Saved GREEN results: Results_GREEN_" + baseName + ".csv");
+
+        // QC overlay: outlines on the contrast-stretched raw image
+        open(dir + fileName);
+        run("Enhance Contrast", "saturated=0.35"); run("8-bit"); run("RGB Color");
+        roiManager("Set Color", "cyan"); roiManager("Set Line Width", 1);
+        roiManager("Show All without labels"); run("Flatten");
+        saveAs("PNG", dir + "QC_GREEN_" + baseName + ".png");
+        roiManager("reset");
 
         close("Results");
         run("Close All");
