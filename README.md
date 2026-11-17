@@ -8,34 +8,29 @@ The macro assumes that, for each field of view, you have:
 
 For each file in the target directory, the macro:
 - **Scans a folder** you specify in the `dir` variable.
+- **Adapts to each image's brightness.** For every image the macro measures its background, its noise (1.4826 × median absolute deviation) and its signal (99.9th percentile above background), and sets cutoffs from those. Dim and bright samples are therefore measured the same way. Tested by dimming two samples to 50%, 25% and 12% signal: live area stayed constant and % dead held until the dead-cell signal approached camera noise (where the summary flags it).
 - **Processes GREEN (`w1.TIF`) images**  
-  - Opens the image.  
-  - Applies **Sharpen**.  
-  - Applies **Li Auto Threshold** (`method=Li`, white foreground, `ignore_black`).  
-  - Converts to a **binary mask**.  
-  - Runs **Analyze Particles** with `size=200-Infinity pixel`, outputs overlay masks and results.  
-  - Logs the number of live aggregates and the **total live area**.  
-  - Saves:
-    - `Mask_GREEN_<basename>.tif` – GREEN mask image.  
-    - `Results_GREEN_<basename>.csv` – particle analysis results.  
-    - `QC_GREEN_<basename>.png` – detected outlines drawn on the contrast-stretched image.
-  - Note: calcein-type live stains fill the cytoplasm continuously across a cell aggregate, so each GREEN particle is an **aggregate, not a single cell**. Use total live area (sum of `Area`) as the live readout, not the row count. The 200 px minimum intentionally drops faint green specks that sit on dead cells.
+  - Gaussian Blur (`sigma=1`).  
+  - Outline at background + max(5 × noise, 20% of signal). The signal fraction rejects out-of-focus glow in proportion to brightness, so area does not depend on how bright the sample is.  
+  - Keeps objects ≥ 200 px whose peak reaches background + 10 × noise.  
+  - Saves `Mask_GREEN_<basename>.tif`, `Results_GREEN_<basename>.csv`, `QC_GREEN_<basename>.png` (cyan outlines).
+  - Note: calcein-type live stains fill the cytoplasm continuously across a cell aggregate, so each GREEN particle is an **aggregate, not a single cell**. Use total live area as the live readout. The 200 px minimum intentionally drops faint green specks that sit on dead cells.
+  - Why not Li: on dim images Li's cutoff collapses into the background and reports the whole field as live (~500,000 px instead of ~28,000).
 - **Processes RED (`w2.TIF`) images**  
-  - Opens the image.  
-  - Applies **Subtract Background** (`rolling=10`) and **Gaussian Blur** (`sigma=1`).  
-  - Applies **Otsu Auto Threshold** (`method=Otsu`, white foreground).  
-  - Converts to a **binary mask** and runs **Watershed** to split touching nuclei.  
-  - Runs **Analyze Particles** with `size=10-400 pixel`, `circularity=0.30-1.00`.  
-  - Saves:
-    - `Mask_RED_<basename>.tif` – RED mask image.  
-    - `Results_RED_<basename>.csv` – particle analysis results (one row per dead cell).  
-    - `QC_RED_<basename>.png` – detected outlines drawn on the contrast-stretched image, for visual checking.
-  - Why not Yen on the raw image: on 16-bit images with a dim background, Yen can set the cutoff above most dead nuclei (e.g. 472 vs. nuclei at ~200–320), and a 20–100 px size cap discards touching nuclei. On a liver sample this gave 4 cells instead of ~108.
+  - Subtract Background (`rolling=10`), Gaussian Blur (`sigma=1`).  
+  - Outline at max(3.5 × noise, 15% of signal); keep objects whose peak reaches 6 × noise (hysteresis, so dim nuclei with a real peak still count).  
+  - Removes long thin debris (Feret > 60 px and MinFeret < 25 px), then Watershed to split touching nuclei.  
+  - Keeps objects ≥ 10 px, circularity 0.30–1.00.  
+  - Saves `Mask_RED_<basename>.tif`, `Results_RED_<basename>.csv` (one row per dead cell), `QC_RED_<basename>.png` (yellow outlines).
+  - History: Yen on the raw image gave 4 cells instead of ~108; Otsu was thrown off by bright debris (6 instead of ~120); Triangle undercounted dim samples.
+- **All cutoffs are tunable** in the parameter block at the top of the macro (`G_*`, `R_*`).
 - **Writes a summary** `Summary_Area_Percent.csv` with one row per sample: GREEN area, RED area, RED count, and:
   - **Pct_Live_Area** = GREEN / (GREEN + RED) × 100
   - **Pct_Dead_Area** = RED / (GREEN + RED) × 100 (the two sum to 100%)
   - **Dead_per_10k_Live_px** = RED count / GREEN area × 10,000 – dead cells per 10,000 px² of live area; uses the count, so it doesn't depend on nucleus size. Lower = healthier.
-  - Note: RED marks only dead nuclei while GREEN fills live cytoplasm, so % dead area understates the fraction of dead cells. Use these to compare samples imaged the same way; a true % viability by cell count needs a total-nuclei stain (e.g. Hoechst/DAPI).
+  - **Green_SNR / Red_SNR** – signal-to-noise of each channel.
+  - **Low_Signal** – names any channel below `G_SNR_MIN` (20) / `R_SNR_MIN` (12). Results for flagged samples are unreliable (dead cells too close to camera noise); check their QC images or re-image with longer exposure.
+  - Note: RED marks only dead nuclei while GREEN fills live cytoplasm, so % dead area understates the fraction of dead cells. Use these to compare samples; a true % viability by cell count needs a total-nuclei stain (e.g. Hoechst/DAPI).
 - **Skips all other files** (anything not ending in `w1.TIF` or `w2.TIF`).
 
 ### How to Use
