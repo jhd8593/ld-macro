@@ -46,21 +46,32 @@ for (i = 0; i < lengthOf(list); i++) {
         baseName = replace(fileName, "w2.TIF", "");
 
         open(dir + fileName);
+        rawTitle = getTitle();
         print("Opened RED image: " + fileName);
-        wait(200);
-        run("Auto Threshold", "method=Yen white");
+        // Yen on raw 16-bit sat above most dead nuclei (~472 vs ~200-320) and the
+        // 20-100 px cap dropped touching nuclei. Flatten background, split clusters.
+        run("Subtract Background...", "rolling=10");
+        run("Gaussian Blur...", "sigma=1");
+        run("Auto Threshold", "method=Otsu white");
         setOption("BlackBackground", false);
         run("Convert to Mask");
-        run("Analyze Particles...", "size=20-100 pixel circularity=0.30-1.00 show=Outlines display include add");
-        print("Processed RED image");
-
-        run("Flatten");
-        run("Make Binary");
+        run("Watershed");
+        roiManager("reset");
+        run("Analyze Particles...", "size=10-400 pixel circularity=0.30-1.00 show=Masks display clear include add");
+        print("Processed RED image: " + nResults + " dead cells");
 
         saveAs("Tiff", dir + "Mask_RED_" + baseName + ".tif");
         print("Saved RED mask: Mask_RED_" + baseName + ".tif");
         saveAs("Results", dir + "Results_RED_" + baseName + ".csv");
         print("Saved RED results: Results_RED_" + baseName + ".csv");
+
+        // QC overlay: outlines on the contrast-stretched raw image
+        open(dir + fileName);
+        run("Enhance Contrast", "saturated=0.35"); run("8-bit"); run("RGB Color");
+        roiManager("Set Color", "yellow"); roiManager("Set Line Width", 1);
+        roiManager("Show All without labels"); run("Flatten");
+        saveAs("PNG", dir + "QC_RED_" + baseName + ".png");
+        roiManager("reset");
 
         close("Results");
         run("Close All");
