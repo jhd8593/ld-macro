@@ -106,9 +106,10 @@ for (i = 0; i < lengthOf(list); i++) {
     }
 }
 
-// Summary per sample: Area % = GREEN area / RED area * 100;
+// Summary per sample: Pct_Live_Area = GREEN / (GREEN + RED) * 100,
+// Pct_Dead_Area = RED / (GREEN + RED) * 100 (they sum to 100);
 // Dead_per_10k_Live_px = RED count / GREEN area * 10000
-csv = "Sample,Green_Area_px,Red_Area_px,Red_Count,Green_over_Red_Area_pct,Dead_per_10k_Live_px\n";
+csv = "Sample,Green_Area_px,Red_Area_px,Red_Count,Pct_Live_Area,Pct_Dead_Area,Dead_per_10k_Live_px\n";
 for (i = 0; i < lengthOf(list); i++) {
     if (endsWith(list[i], "w1.TIF")) {
         b = replace(list[i], "w1.TIF", "");
@@ -116,12 +117,16 @@ for (i = 0; i < lengthOf(list); i++) {
         if (g == "" || r == "") {
             print("Summary: missing GREEN or RED for " + b);
         } else {
-            pct = "NaN";
-            if (parseFloat(r) > 0) pct = d2s(parseFloat(g) / parseFloat(r) * 100, 2);
+            tot = parseFloat(g) + parseFloat(r);
+            pLive = "NaN"; pDead = "NaN";
+            if (tot > 0) {
+                pLive = d2s(parseFloat(g) / tot * 100, 2);
+                pDead = d2s(parseFloat(r) / tot * 100, 2);
+            }
             dpl = "NaN";
             if (parseFloat(g) > 0) dpl = d2s(parseFloat(n) / parseFloat(g) * 10000, 2);
-            csv = csv + b + "," + g + "," + r + "," + n + "," + pct + "," + dpl + "\n";
-            print("Area % (green/red*100) for " + b + ": " + pct);
+            csv = csv + b + "," + g + "," + r + "," + n + "," + pLive + "," + pDead + "," + dpl + "\n";
+            print("% live area for " + b + ": " + pLive + "   % dead area: " + pDead);
             print("Dead cells per 10,000 px live area for " + b + ": " + dpl);
         }
     }
