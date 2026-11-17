@@ -14,18 +14,24 @@ For each file in the target directory, the macro:
   - Applies **Li Auto Threshold** (`method=Li`, white foreground, `ignore_black`).  
   - Converts to a **binary mask**.  
   - Runs **Analyze Particles** with `size=200-Infinity pixel`, outputs overlay masks and results.  
+  - Logs the number of live aggregates and the **total live area**.  
   - Saves:
     - `Mask_GREEN_<basename>.tif` – GREEN mask image.  
-    - `Results_GREEN_<basename>.csv` – particle analysis results.
+    - `Results_GREEN_<basename>.csv` – particle analysis results.  
+    - `QC_GREEN_<basename>.png` – detected outlines drawn on the contrast-stretched image.
+  - Note: calcein-type live stains fill the cytoplasm continuously across a cell aggregate, so each GREEN particle is an **aggregate, not a single cell**. Use total live area (sum of `Area`) as the live readout, not the row count. The 200 px minimum intentionally drops faint green specks that sit on dead cells.
 - **Processes RED (`w2.TIF`) images**  
   - Opens the image.  
-  - Applies **Yen Auto Threshold** (`method=Yen`, white foreground).  
-  - Converts to a **binary mask**.  
-  - Runs **Analyze Particles** with `size=20-100 pixel`, `circularity=0.30-1.00`, and saves outlines and results.  
-  - Flattens the overlay and ensures the result is binary.  
+  - Applies **Subtract Background** (`rolling=10`) and **Gaussian Blur** (`sigma=1`).  
+  - Applies **Otsu Auto Threshold** (`method=Otsu`, white foreground).  
+  - Converts to a **binary mask** and runs **Watershed** to split touching nuclei.  
+  - Runs **Analyze Particles** with `size=10-400 pixel`, `circularity=0.30-1.00`.  
   - Saves:
     - `Mask_RED_<basename>.tif` – RED mask image.  
-    - `Results_RED_<basename>.csv` – particle analysis results.
+    - `Results_RED_<basename>.csv` – particle analysis results (one row per dead cell).  
+    - `QC_RED_<basename>.png` – detected outlines drawn on the contrast-stretched image, for visual checking.
+  - Why not Yen on the raw image: on 16-bit images with a dim background, Yen can set the cutoff above most dead nuclei (e.g. 472 vs. nuclei at ~200–320), and a 20–100 px size cap discards touching nuclei. On a liver sample this gave 4 cells instead of ~108.
+- **Writes a summary** `Summary_Area_Percent.csv` with one row per sample: GREEN area, RED area, RED count, and **Area % = GREEN area / RED area × 100**. (RED area is dead nuclei, GREEN is live cytoplasm, so values above 100 are expected.)
 - **Skips all other files** (anything not ending in `w1.TIF` or `w2.TIF`).
 
 ### How to Use
