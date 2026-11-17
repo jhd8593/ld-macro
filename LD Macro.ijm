@@ -1,6 +1,7 @@
 // Define directory with trailing backslash and get list of files
 dir = "C:\\Users\\Jon\\Desktop\\Cardiac_Hypothermia_72025\\";
 list = getFileList(dir);
+List.clear(); // stores per-sample GREEN/RED areas for the summary
 
 // Print list of files found
 print("Files found in the directory:");
@@ -37,6 +38,7 @@ for (i = 0; i < lengthOf(list); i++) {
         liveArea = 0;
         for (r = 0; r < nResults; r++) liveArea += getResult("Area", r);
         print("Processed GREEN image: " + nResults + " live aggregates, total live area = " + liveArea + " px");
+        List.set("G_" + baseName, liveArea);
 
         selectImage(greenID);
         saveAs("Tiff", dir + "Mask_GREEN_" + baseName + ".tif");
@@ -74,7 +76,11 @@ for (i = 0; i < lengthOf(list); i++) {
         run("Watershed");
         roiManager("reset");
         run("Analyze Particles...", "size=10-400 pixel circularity=0.30-1.00 show=Masks display clear include add");
-        print("Processed RED image: " + nResults + " dead cells");
+        deadArea = 0;
+        for (r = 0; r < nResults; r++) deadArea += getResult("Area", r);
+        print("Processed RED image: " + nResults + " dead cells, total dead area = " + deadArea + " px");
+        List.set("R_" + baseName, deadArea);
+        List.set("N_" + baseName, nResults);
 
         saveAs("Tiff", dir + "Mask_RED_" + baseName + ".tif");
         print("Saved RED mask: Mask_RED_" + baseName + ".tif");
@@ -100,3 +106,21 @@ for (i = 0; i < lengthOf(list); i++) {
     }
 }
 
+// Summary: Area % = GREEN area / RED area * 100, one row per sample
+csv = "Sample,Green_Area_px,Red_Area_px,Red_Count,Green_over_Red_Area_pct\n";
+for (i = 0; i < lengthOf(list); i++) {
+    if (endsWith(list[i], "w1.TIF")) {
+        b = replace(list[i], "w1.TIF", "");
+        g = List.get("G_" + b); r = List.get("R_" + b); n = List.get("N_" + b);
+        if (g == "" || r == "") {
+            print("Summary: missing GREEN or RED for " + b);
+        } else {
+            pct = "NaN";
+            if (parseFloat(r) > 0) pct = d2s(parseFloat(g) / parseFloat(r) * 100, 2);
+            csv = csv + b + "," + g + "," + r + "," + n + "," + pct + "\n";
+            print("Area % (green/red*100) for " + b + ": " + pct);
+        }
+    }
+}
+File.saveString(csv, dir + "Summary_Area_Percent.csv");
+print("Saved summary: Summary_Area_Percent.csv");
