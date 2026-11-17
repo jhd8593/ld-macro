@@ -106,8 +106,9 @@ for (i = 0; i < lengthOf(list); i++) {
     }
 }
 
-// Summary: Area % = GREEN area / RED area * 100, one row per sample
-csv = "Sample,Green_Area_px,Red_Area_px,Red_Count,Green_over_Red_Area_pct\n";
+// Summary per sample: Area % = GREEN area / RED area * 100;
+// Dead_per_10k_Live_px = RED count / GREEN area * 10000
+csv = "Sample,Green_Area_px,Red_Area_px,Red_Count,Green_over_Red_Area_pct,Dead_per_10k_Live_px\n";
 for (i = 0; i < lengthOf(list); i++) {
     if (endsWith(list[i], "w1.TIF")) {
         b = replace(list[i], "w1.TIF", "");
@@ -117,8 +118,11 @@ for (i = 0; i < lengthOf(list); i++) {
         } else {
             pct = "NaN";
             if (parseFloat(r) > 0) pct = d2s(parseFloat(g) / parseFloat(r) * 100, 2);
-            csv = csv + b + "," + g + "," + r + "," + n + "," + pct + "\n";
+            dpl = "NaN";
+            if (parseFloat(g) > 0) dpl = d2s(parseFloat(n) / parseFloat(g) * 10000, 2);
+            csv = csv + b + "," + g + "," + r + "," + n + "," + pct + "," + dpl + "\n";
             print("Area % (green/red*100) for " + b + ": " + pct);
+            print("Dead cells per 10,000 px live area for " + b + ": " + dpl);
         }
     }
 }
